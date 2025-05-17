@@ -88,7 +88,6 @@ EOB
 ```
 
 ## CEL Hints
-```
 
 ### Setting a variable:
 ```

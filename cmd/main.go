@@ -69,7 +69,9 @@ func (p *Plugin) Configure(ctx context.Context, req *configv1.ConfigureRequest) 
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Error opening file: %v", err)
 		}
-		defer file.Close()
+		defer func() {
+			_ = file.Close()
+		}()
 		data, err := io.ReadAll(file)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Error reading file: %v", err)
@@ -139,11 +141,14 @@ func (p *Plugin) ComposeWorkloadX509SVID(context.Context, *credentialcomposerv1.
 }
 
 func (p *Plugin) ComposeWorkloadJWTSVID(_ context.Context, req *credentialcomposerv1.ComposeWorkloadJWTSVIDRequest) (*credentialcomposerv1.ComposeWorkloadJWTSVIDResponse, error) {
-	// Intentionally not implemented.
+	config, err := p.getConfig()
+	if err != nil {
+		return nil, err
+	}
 	p.logger.Debug("JWT rewrite request", req)
-	out, _, err := p.config.JWT.prg.Eval(map[string]interface{}{
-		"trust_domain":        p.config.trustDomain,
-		"spiffe_trust_domain": p.config.spiffeTrustDomain,
+	out, _, err := config.JWT.prg.Eval(map[string]interface{}{
+		"trust_domain":        config.trustDomain,
+		"spiffe_trust_domain": config.spiffeTrustDomain,
 		"request":             req,
 	})
 	if err != nil {
@@ -154,6 +159,7 @@ func (p *Plugin) ComposeWorkloadJWTSVID(_ context.Context, req *credentialcompos
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to parse return type: %v", err)
 	}
 	resp, _ := respn.(*credentialcomposerv1.ComposeWorkloadJWTSVIDResponse)
+	p.logger.Debug("JWT rewrite response", resp)
 	return resp, nil
 }
 

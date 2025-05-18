@@ -13,6 +13,7 @@ import (
 	"github.com/google/cel-go/common/types/ref"
 	"github.com/google/cel-go/common/types/traits"
 	"github.com/google/cel-go/ext"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/hcl"
 	"github.com/spiffe/spire-plugin-sdk/pluginmain"
@@ -98,6 +99,13 @@ func (p *Plugin) Configure(ctx context.Context, req *configv1.ConfigureRequest) 
 				[]*cel.Type{dynType, dynType},
 				dynType,
 				cel.FunctionBinding(mapOverrideEntries),
+			),
+		),
+		cel.Function("uuidgen",
+			cel.Overload("uuidgen",
+				[]*cel.Type{},
+				cel.StringType,
+				cel.FunctionBinding(uuidgen),
 			),
 		),
 	)
@@ -204,6 +212,10 @@ func mapOverrideEntries(args ...ref.Val) ref.Val {
 		copy[nextK] = nextV
 	}
 	return types.DefaultTypeAdapter.NativeToValue(copy)
+}
+
+func uuidgen(args ...ref.Val) ref.Val {
+	return types.String(uuid.New().String())
 }
 
 func main() {

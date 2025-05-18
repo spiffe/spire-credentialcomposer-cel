@@ -6,6 +6,7 @@ toolchain go1.24.3
 
 require (
 	github.com/google/cel-go v0.25.0
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/hcl v1.0.1-vault-7
 	github.com/spiffe/spire-plugin-sdk v1.12.0

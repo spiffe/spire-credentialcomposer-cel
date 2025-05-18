@@ -142,6 +142,9 @@ func (p *Plugin) ComposeWorkloadX509SVID(context.Context, *credentialcomposerv1.
 
 func (p *Plugin) ComposeWorkloadJWTSVID(_ context.Context, req *credentialcomposerv1.ComposeWorkloadJWTSVIDRequest) (*credentialcomposerv1.ComposeWorkloadJWTSVIDResponse, error) {
 	config, err := p.getConfig()
+	if err != nil {
+		return nil, err
+	}
 	p.logger.Debug("JWT rewrite request", req)
 	out, _, err := config.JWT.prg.Eval(map[string]interface{}{
 		"trust_domain":        config.trustDomain,
@@ -156,6 +159,7 @@ func (p *Plugin) ComposeWorkloadJWTSVID(_ context.Context, req *credentialcompos
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to parse return type: %v", err)
 	}
 	resp, _ := respn.(*credentialcomposerv1.ComposeWorkloadJWTSVIDResponse)
+	p.logger.Debug("JWT rewrite response", resp)
 	return resp, nil
 }
 

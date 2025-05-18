@@ -36,15 +36,18 @@ Some ext macros are also availabe:
 
 Custom macros are provided:
  * mapOverrideEntries - Runs on a map, give it another map and it will override settings in the first map with the second. It is a shallow override, no merging is performed.
+ * uuidgen - generate a v4(random) uuid
 
 ### Return
 
 Currently only the `spire.plugin.server.credentialcomposer.v1.ComposeWorkloadJWTSVIDResponse` type is
 supported. It must be completely filled out. Other shortcut options may be added in the future.
 
-## JWT Examples:
+## JWT Examples
 
-### Add `newkey=newvalue` to the token.
+### Add a new claim
+
+This example adds `newkey=newvalue` to the token.
 
 ```
   CredentialComposer "cel" {
@@ -58,6 +61,29 @@ spire.plugin.server.credentialcomposer.v1.ComposeWorkloadJWTSVIDResponse{
     claims: request.attributes.claims.mapOverrideEntries({
       'newkey': "newvalue"
     })
+  }
+}
+EOB
+      }
+    }
+  }
+```
+
+### JTI
+
+Some clients want a JTI property. Add one.
+
+SPIRE Server Config:
+```
+  CredentialComposer "cel" {
+    plugin_cmd = "spire-credentialcomposer-cel"
+    plugin_checksum = ""
+    plugin_data {
+      jwt {
+        expression_string = <<EOB
+spire.plugin.server.credentialcomposer.v1.ComposeWorkloadJWTSVIDResponse{
+  attributes: spire.plugin.server.credentialcomposer.v1.JWTSVIDAttributes{
+    claims: request.attributes.claims.mapOverrideEntries({"jti": uuidgen()})
   }
 }
 EOB

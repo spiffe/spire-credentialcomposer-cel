@@ -25,6 +25,18 @@ request has the following properties:
 request.attributes has the following properties:
  * claims - map(dyn, dyn)
 
+### Macros
+
+The standard macros are [available](https://github.com/google/cel-spec/blob/master/doc/langdef.md#macros).
+
+Some ext macros are also availabe:
+ * [cel.bind](https://pkg.go.dev/github.com/google/cel-go/ext#hdr-Cel_Bind-Bindings)
+ * [strings](https://pkg.go.dev/github.com/google/cel-go/ext#Strings)
+ * [two var comprehensions](https://pkg.go.dev/github.com/google/cel-go/ext#TwoVarComprehensions)
+
+Custom macros are provided:
+ * mapOverrideEntries - Runs on a map, give it another map and it will override settings in the first map with the second. It is a shallow override, no merging is performed.
+
 ### Return
 
 Currently only the `spire.plugin.server.credentialcomposer.v1.ComposeWorkloadJWTSVIDResponse` type is
@@ -43,10 +55,9 @@ supported. It must be completely filled out. Other shortcut options may be added
         expression_string = <<EOB
 spire.plugin.server.credentialcomposer.v1.ComposeWorkloadJWTSVIDResponse{
   attributes: spire.plugin.server.credentialcomposer.v1.JWTSVIDAttributes{
-    claims:
-      (request.attributes.claims.transformList(k, v, [k,v]) + [
-        ['newkeyolicy', 'newvalue']
-      ]).transformMapEntry(i, v, {v[0]:v[1]})
+    claims: request.attributes.claims.mapOverrideEntries({
+      'newkey': "newvalue"
+    })
   }
 }
 EOB
@@ -73,12 +84,11 @@ SPIRE Server Config:
         expression_string = <<EOB
 spire.plugin.server.credentialcomposer.v1.ComposeWorkloadJWTSVIDResponse{
   attributes: spire.plugin.server.credentialcomposer.v1.JWTSVIDAttributes{
-    claims:
+    claims: request.attributes.claims.mapOverrideEntries(
       request.spiffe_id.startsWith(spiffe_trust_domain + "/minio/")?
-      (request.attributes.claims.transformList(k, v, [k,v]) + [
-        ['policy', [request.spiffe_id.substring(spiffe_trust_domain.size() + 7)]]
-      ]).transformMapEntry(i, v, {v[0]:v[1]}):
-      request.attributes.claims
+      {'policy': [request.spiffe_id.substring(spiffe_trust_domain.size() + 7)]}:
+      {}
+    )
   }
 }
 EOB

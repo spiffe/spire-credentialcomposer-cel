@@ -9,6 +9,9 @@ import (
 	"sync"
 
 	"github.com/google/cel-go/cel"
+	"github.com/google/cel-go/common/types"
+	"github.com/google/cel-go/common/types/ref"
+	"github.com/google/cel-go/common/types/traits"
 	"github.com/google/cel-go/ext"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/hcl"
@@ -32,7 +35,7 @@ type ConfigJWT struct {
 }
 
 type Config struct {
-	JWT ConfigJWT     `hcl:"jwt"`
+	JWT               ConfigJWT `hcl:"jwt"`
 	trustDomain       string
 	spiffeTrustDomain string
 }
@@ -76,6 +79,7 @@ func (p *Plugin) Configure(ctx context.Context, req *configv1.ConfigureRequest) 
 		config.JWT.ExpressionString = &str
 	}
 
+	dynType := cel.MapType(cel.DynType, cel.DynType)
 	env, err := cel.NewEnv(
 		cel.Types(&credentialcomposerv1.ComposeWorkloadJWTSVIDRequest{}),
 		cel.Types(&credentialcomposerv1.ComposeWorkloadJWTSVIDResponse{}),
@@ -87,6 +91,13 @@ func (p *Plugin) Configure(ctx context.Context, req *configv1.ConfigureRequest) 
 		ext.Lists(),
 		ext.Strings(),
 		ext.TwoVarComprehensions(),
+		cel.Function("mapOverrideEntries",
+			cel.MemberOverload("mapOverrideEntries",
+				[]*cel.Type{dynType, dynType},
+				dynType,
+				cel.FunctionBinding(mapOverrideEntries),
+			),
+		),
 	)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to load cel environment: %v", err)
@@ -131,9 +142,9 @@ func (p *Plugin) ComposeWorkloadJWTSVID(_ context.Context, req *credentialcompos
 	// Intentionally not implemented.
 	p.logger.Debug("JWT rewrite request", req)
 	out, _, err := p.config.JWT.prg.Eval(map[string]interface{}{
-		"trust_domain": p.config.trustDomain,
+		"trust_domain":        p.config.trustDomain,
 		"spiffe_trust_domain": p.config.spiffeTrustDomain,
-		"request": req,
+		"request":             req,
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to evaluate cel expression: %v", err)
@@ -159,6 +170,34 @@ func (p *Plugin) getConfig() (*Config, error) {
 		return nil, status.Error(codes.FailedPrecondition, "not configured")
 	}
 	return p.config, nil
+}
+
+func mapOverrideEntries(args ...ref.Val) ref.Val {
+	lhs := args[0]
+	rhs := args[1]
+
+	copy := make(map[ref.Val]ref.Val, 0)
+	mapper, ok := lhs.(traits.Mapper)
+	if !ok {
+		return types.ValOrErr(nil, "unsupported lhs type")
+	}
+	it := mapper.Iterator()
+	for it.HasNext() == types.True {
+		nextK := it.Next()
+		nextV := mapper.Get(nextK)
+		copy[nextK] = nextV
+	}
+	mapper, ok = rhs.(traits.Mapper)
+	if !ok {
+		return types.ValOrErr(nil, "unsupported rhs type")
+	}
+	it = mapper.Iterator()
+	for it.HasNext() == types.True {
+		nextK := it.Next()
+		nextV := mapper.Get(nextK)
+		copy[nextK] = nextV
+	}
+	return types.DefaultTypeAdapter.NativeToValue(copy)
 }
 
 func main() {

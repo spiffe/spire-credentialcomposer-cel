@@ -1,8 +1,6 @@
 module github.com/spiffe/spire/spire-credentialcomposer-cel
 
-go 1.24.2
-
-toolchain go1.24.3
+go 1.26.10
 
 require (
 	github.com/google/cel-go v0.25.0
